@@ -1,122 +1,51 @@
-fillSection();
+let products;
+// Fonction pour aller chercher l'api
+const fetchProducts = async () => {
+    await fetch('http://localhost:3000/api/products') // on va chercher l'API avec la methode fetch 
+        .then(res => res.json())
+        .then(JSON => products = JSON) // on récupere les informations de l'api qu'on va mettre au format json.  
+        .catch((error) => console.error(error));
+        console.log(products)
+};
 
+fetchProducts(); // On appelle la fonction précédente pour récupérer les données de l'API
 
-import { BASE_URL, fetchData, createElementFactory } from './utils.js'
+// fonction pour lier les élements HTML que l'on va créer avec les données de l'api
+const showProducts = async () => {  // on créait une fonction asynchrone et on attends la réponse de fetchProducts.
+    await fetchProducts();
 
-const PRODUCTS_URL = BASE_URL + 'products'
+    for (let i = 0; i < products.length; i++) {
 
-/**
- * Create a product element.
- *
- * @param {Product} data Date used to render element
- * @returns {HTMLLinkElement} The newly created element based on data
- */
-function createProductElement (data) {
-  /**
-   * @type {{ a: HTMLLinkElement, article: HTMLElement, img: HTMLImageElement, h3: HTMLHeadingElement, p: HTMLParagraphElement }}
-   */
-  const { a, article, img, h3, p } = createElementFactory('a', 'article', 'img', 'h3', 'p')
+        let items = document.getElementById("items");
 
-  // description
-  p.classList.add('productDescription')
-  p.innerText = data.description
+        // Ajout des liens
+        let link = document.createElement("a");
+        link.setAttribute('href', "product.html?id=" + products[i]._id);
+        items.appendChild(link);
 
-  // title
-  h3.classList.add('productName')
-  h3.innerText = data.name
+        // Création des balises article
+        let article = document.createElement("article");
+        link.appendChild(article);
 
-  // image
-  img.alt = data.altTxt
-  img.src = data.imageUrl;
+        // Ajout des images
+        let images = document.createElement("img");
+        images.setAttribute('src', products[i].imageUrl);
+        images.setAttribute('alt', products[i].altTxt);
+        article.appendChild(images);
 
-  // content
-  [ img, h3, p ].forEach(child => article.appendChild(child))
+        // Création des titres h3
+        let title = document.createElement("h3");
+        title.innerHTML = products[i].name;
+        article.appendChild(title);
 
-  // link
-  a.href = `./product.html?id=${data._id}`
-  a.appendChild(article)
+        // Création des paragraphes
+        let description = document.createElement("p");
+        article.appendChild(description);
+        description.innerHTML = products[i].description;
+    }
+};
+showProducts();
 
-  return a
-}
+// on déclare une variable qui contiendra les données de l'api des produits 
 
-/**
- * Render products to DOM.
- *
- * @param {HTMLElement} el Element where to render products list
- * @param {Products} produts
- */
-function renderProductsItems (el, produts) {
-  // clone element to prevent updating DOM each time an element is appended
-  const target = el.cloneNode()
-
-  // create each product element from its data
-  const elements = produts.map(data => createProductElement(data))
-
-  // append each product to list
-  elements.forEach(element => target.appendChild(element))
-
-  // replace content with the list of products
-  el.parentElement.replaceChild(target, el)
-}
-
-/**
- * Render an error while fetching products.
- *
- * @param {HTMLElement} el Element where to render error
- */
-function renderProductsError (el) {
-  // clone element to prevent updating DOM each time an element is appended
-  const target = el.cloneNode()
-
-  /** Wrapper to avoid parent flex to apply to children directly */
-  const div = document.createElement('div')
-  /** Error message */
-  const p = document.createElement('p')
-  /** Retry button */
-  const button = document.createElement('button')
-
-  p.innerText = 'Une erreur est survenue lors du chargement des produits.'
-  button.innerText = 'Réessayer'
-
-  // listen for retry
-  button.addEventListener('click', (e) => {
-    e.preventDefault()
-    renderProducts(target)
-  }, { once: true });
-
-  // align text center using style as it is temporary
-  div.style.textAlign = 'center';
-
-  // add content to wrapper
-  [ p, button ].forEach(element => div.appendChild(element))
-  // set error content
-  target.appendChild(div)
-
-  // replace content with error content
-  el.parentElement.replaceChild(target, el)
-}
-
-/**
- * Fetch products and render them to DOM.
- * If it fails to fetch it handles error nicely.
- *
- * @param {HTMLElement} el Element where to render products
- */
-async function renderProducts (el) {
-  try {
-    /** @type {Products} */
-    const products = await fetchData(PRODUCTS_URL)
-
-    renderProductsItems(el, products)
-  } catch (err) {
-    console.error(err)
-    renderProductsError(el)
-  }
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  /** Products container where to render */
-  const items = document.querySelector('#items')
-
-  renderProducts(items)
-})
+// 
