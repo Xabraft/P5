@@ -1,99 +1,168 @@
-let idProduct = new URL(window.location.href).searchParams.get("id"); // on récupére l'id avec les paramétres de l'url
-console.log(idProduct);
-//Récupération des sélecteurs css et des id du HTML pour après
-let picture     = document.querySelector(".item__img"); // on récupére le selecteur css pour pouvoir mettre l'image après
-let title       = document.getElementById("title"); // on récupéré l'id title du document HTML
-let price       = document.getElementById("price"); // on récupére l'id price du document HTML
-let description = document.getElementById("description"); // on récupére l'id description du document HTML
-let colorsArray = document.getElementById("colors"); // on récupére l'id description du document HTML
+import { BASE_URL, setDocumentTitle, fetchData, saveToCart, ValidationEntryError, ValidationError, getURLParam } from './utils.js'
 
-// fonction pour récuperer les données de l'api avec l'id du produit
-const getProduct = async() => {
-   return  await fetch("http://localhost:3000/api/products/" + idProduct) // on va chercher l'API avec la methode fetch et on ajoute notre variable qui contient l'id
-    .then((res) => res.json());      
-};
- // On appelle la fonction précédente pour récupérer les données de l'API
+const PRODUCT_URL = id => (BASE_URL + 'products/' + id)
 
-// fonction pour lier les élements HTML que l'on va créer avec les données de l'api
-const showProduct = async() => { 
-   const product =  await getProduct(); 
+/**
+ * Create a select option.
+ *
+ * @param {string} value
+ * @param {string} text
+ * @return {HTMLOptionElement}
+ */
+function createOptionElement (value, text = value) {
+  const option = document.createElement('option')
 
-        // on ajoute les balises img pour y mettre les images
-        let image = document.createElement("img");
-        image.setAttribute('src', product.imageUrl);
-        image.setAttribute('alt', product.altTxt);
-        picture.appendChild(image);
+  option.innerText = text
+  option.value = value
 
-        // on ajoute le nom
-        title.innerHTML = product.name;
+  return option
+}
 
-        // on ajoute les prix
-        price.innerHTML = product.price;
+/**
+ * Hydrate element with data.
+ *
+ * @param {HTMLElement} el Template element
+ * @param {Product} data
+ */
+function hydrateProduct (el, data) {
+  /** @type {HTMLElement} */
+  const target = el.cloneNode(true)
 
-        // on ajout la description
-        description.innerHTML = product.description;
+  const imgParent = target.querySelector('.item__img')
+  const img = document.createElement('img')
 
-        // On va chercher les couleurs du tableau colors avec une boucle for et on créait l'html
-        for (let i=0; i < product.colors.length; i++) {
+  const title = target.querySelector('#title')
+  const price = target.querySelector('#price')
+  const description = target.querySelector('#description')
 
-          let color = document.createElement("option");
-          color.setAttribute('value', product.colors[i]);
-          color.innerHTML = product.colors[i];
-          colorsArray.appendChild(color);
-        }
+  const colorsSelect = target.querySelector('#colors')
 
-        let button     = document.getElementById("addToCart"); // on stock l'id dans une variable
-        const quantity = document.getElementById("quantity"); // on stock l'id dans une variable
-        let panier  = JSON.parse(localStorage.getItem("prod")) || []; // on utilise la méthode .parse pour les convertir en JSON 
-        console.log(product);
-      
-        button.addEventListener("click", () => { // on ecoute la variable button au click, le code se déclenche au click
-         
-         if (quantity.value > 0 && quantity.value <=100 && quantity.value != 0 && colors.value != 0) { // si la quantité est supérieur à 0 et que la quantité est inférieur ou égale à 100 et qu'il y a une couleur selectionnée, alors tu m'excutes le code si dessous. 
-        
-            // on récupere ce qu'il y a dans le local storage dans une variable avec un objet "prod"
-          const addIdAndValue = Object.assign({}, product, { // on utilise la methode Object.assign pour ajouter 
-            addIdProduct: `${idProduct}` , // on ajoute l'id
-            addColors: `${colorsArray.value}` , // on ajoute la couleur selectionnée
-            addQuantity: `${quantity.value}` , // on ajoute la quantité selectionnée
-          });
-          console.log(addIdAndValue);
-          
-          // fonction ajouter un produit séléctionné dans le local storage
-          const addProductLocalStorage = () => {
-            panier.push(addIdAndValue); // on push la const avec la methode .push 
-            localStorage.setItem("prod", JSON.stringify(panier)); // On met "prod" dans le locale storage et on transforme "panier" en string dans notre local storage 
-          };
-      
-          addCart(panier, idProduct, colorsArray.value);
-          // fonction pour ajouter un produit ou modifier la quantité dans le localstorage. 
-        }
-        else { 
-            alert("veuillez selectionner une couleur et une quantité comprise entre 1 et 100"); 
-        }     
-        });
-};
-showProduct();
- function addCart (panier, id, colors) { 
-      
-           
-            let foundProduct = basket.find(p => p.addIdProduct == id && p.addColors == colors);
-      
-            // si le produit est déja dans le localstorage
-            if(foundProduct != undefined) {
-               foundProduct.addQuantity++;
-               console.log(foundProduct.addQuantity);
-               localStorage.setItem("prod", JSON.stringify(panier));
-            }
-            // si le produit n'est pas dans le localstorage.
-            else {
-                 
-              localStorage.setItem("prod", JSON.stringify(panier));
-               console.log("ko");
-                    
-            }
-            alert("Le produit a été ajouté à votre panier");
-          }
-          
-       
+  // image
+  img.alt = data.altTxt
+  img.src = data.imageUrl;
+  imgParent.appendChild(img)
 
+  // title
+  title.innerText = data.name
+  // price
+  price.innerText = data.price
+  // price
+  description.innerText = data.description
+
+  // colors
+  data.colors
+    .map(color => createOptionElement(color))
+    .forEach(element => colorsSelect.appendChild(element))
+
+  // replace content with product infos
+  el.parentElement.replaceChild(target, el)
+
+  return target
+}
+
+/**
+ * Validate user input to add to cart.
+ *
+ * @param {HTMLElement} el Template element
+ * @param {Product} data
+ */
+function validateCartInput (el, data) {
+  const errors = []
+
+  /** @type {HTMLSelectElement} */
+  const colorsSelect = el.querySelector('#colors')
+  /** @type {HTMLInputElement} */
+  const quantityInput = el.querySelector('#quantity')
+  const minQuantity = quantityInput.min || 1
+  const maxQuantity = quantityInput.max || 1
+
+  const color = colorsSelect.value || null
+  const quantity = quantityInput.valueAsNumber || 0
+
+  // validate color
+  if (!color) {
+    errors.push(new ValidationEntryError('Veuillez choisir une couleur'))
+  } else if (!data.colors.includes(color)) {
+    errors.push(new ValidationEntryError('Couleur inconnue'))
+  }
+
+  // validate quantity
+  if (!Number.isInteger(quantity)) {
+    errors.push(new ValidationEntryError('Quantité invalide'))
+  } else if (quantity < minQuantity || quantity > maxQuantity) {
+    errors.push(new ValidationEntryError(`Veuillez choisir une quantité comprise entre ${minQuantity} et ${maxQuantity}`))
+  }
+
+  if (errors.length === 0) {
+    return { color, quantity }
+  }
+
+  const err = new ValidationError(errors)
+
+  throw err
+}
+
+/**
+ * Handle add to cart click.
+ *
+ * @param {HTMLElement} el Element where to bind listeners
+ * @param {Product} data
+ */
+function handleAddToCart (el, data) {
+  /** @type {HTMLButtonElement} */
+  const button = el.querySelector('#addToCart')
+
+  button.addEventListener('click', (e) => {
+    e.preventDefault()
+
+    try {
+      // get validated input
+      const { color, quantity } = validateCartInput(el, data)
+
+      // WIP: feedback but nothing is save
+      const nexemplaires = quantity + ' exemplaire' + (quantity >= 2 ? 's' : '')
+
+      // indicate if cart is updated
+      if (saveToCart(data, color, acc => acc + quantity)) {
+        const message = `Le canapé ${data.name} ${color} a été ajouté en ${nexemplaires} à votre panier`
+
+        window.alert(message)
+      } else {
+        window.alert(`Une erreur est survenue. Le panier n'a pas été modifié.`)
+      }
+    } catch (err) {
+      console.error(err)
+
+      if (err instanceof ValidationError) {
+        err.showErrors()
+      }
+    }
+  })
+}
+
+/**
+ * Fetch product and update DOM with its data.
+ * If it fails to fetch it handles error nicely.
+ *
+ * @param {HTMLElement} el Element where to render product
+ */
+async function renderProduct (el, product) {
+  try {
+    const hydratedEl = hydrateProduct(el, product)
+
+    handleAddToCart(hydratedEl, product)
+    setDocumentTitle(product.name)
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async function () {
+  const productId = getURLParam(window.location.href)
+  const product = await fetchData(PRODUCT_URL(productId))
+
+  /** Product container where to render */
+  const item = document.querySelector('.item')
+
+  renderProduct(item, product)
+})

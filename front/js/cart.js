@@ -1,229 +1,280 @@
-// fonction pour récupérer les données de l'api
-const fetchProducts = async() => { 
-    await fetch('http://localhost:3000/api/products') // on va chercher l'API avec la methode fetch 
-    .then(res => res.json()
-    .then(json => products = json)); // on fait une promesse en renvoyant la réponse au format JSON. // on définit un paramètre pour products en réutilisant .then 
-    
+import { BASE_URL, getCartFromStorage, computeQuantity, computePriceByQuantity, fetchData, localePrice, createElementFactory, saveToCart, writeCartToStorage } from './utils.js'
 
-let addProduct = JSON.parse(localStorage.getItem("prod")); // on recupere ce qu'il y a dans le local storage
-console.log(addProduct);
+const PRODUCTS_URL = BASE_URL + 'products'
+const ORDER_URL = PRODUCTS_URL + '/order'
 
-const cartDisplay = async () => {
+/**
+ * Map cart item with product data.
+ *
+ * @param {CartItem} item
+ * @param {Products} products
+ *
+ * @returns {CartProduct}
+ */
+function mapCartItem (products, { productId, ...item }) {
+  const product = products.find(({ _id }) => productId === _id)
 
-    if (addProduct) { // on récupere bien addProduct 
-        await addProduct;   
-    }
-};
-cartDisplay();
+  if (!product) {
+    return null
+  }
 
-// affichage des produits
-for (let i=0; i < addProduct.length; i++) {
-    
-
-let cartItems = document.getElementById("cart__items");
-
-// on ajoute l'element article
-let cartArticles = document.createElement("article");
-    cartItems.appendChild(cartArticles);
-    cartArticles.setAttribute("data-id", addProduct[i].addIdProduct);
-    cartArticles.setAttribute("data-color", addProduct[i].addColors)
-    cartArticles.className = "cart__item";
-    
-
-// on ajoute l'element div qui va contenir l'img 
-let divCartImages = document.createElement("div");
-    divCartImages.className = "cart__item__img";
-    cartArticles.appendChild(divCartImages);
-
-// on ajoute l'élement img 
-let cartImages = document.createElement("img");
-    cartImages.setAttribute('src', addProduct[i].imageUrl);
-    cartImages.setAttribute('alt', addProduct[i].altTxt);
-    divCartImages.appendChild(cartImages);
-    
-// on ajoute une div
-let divCartItems = document.createElement("div");
-    divCartItems.className = "cart__item__content";
-    cartArticles.appendChild(divCartItems);
-
-// on ajoute une div
-let divCartItemsDescription = document.createElement("div");   
-    divCartItemsDescription.className = "cart__item__content__description";
-    divCartItems.appendChild(divCartItemsDescription);
-
-// ajout du h2 qui va contenir le nom du produit
-let divCartItemsDescriptionName = document.createElement("h2");
-    divCartItemsDescription.appendChild(divCartItemsDescriptionName);
-    divCartItemsDescriptionName.innerHTML = addProduct[i].name;
-
-// ajout d'un p qui va contenir la couleur du produit
-let divCartItemsDescriptionColor = document.createElement("p");
-    divCartItemsDescription.appendChild(divCartItemsDescriptionColor);
-    divCartItemsDescriptionColor.innerHTML = addProduct[i].addColors;
-
-// ajout d'un p qui va contenir le prix du produit
-let divCartItemsDescriptionPrice = document.createElement("p");
-    divCartItemsDescription.appendChild(divCartItemsDescriptionPrice);
-    divCartItemsDescriptionPrice.innerHTML = products[i].price + " €"; // ici le prix a été récupéré de l'api directement
-
-// ajout d'une div    
-let divCartItemsSetting = document.createElement("div");
-    divCartItemsSetting.className = "cart__item__content__settings";
-    divCartItems.appendChild(divCartItemsSetting);
-
-// ajout d'une div
-let divCartItemsSettingQuantity = document.createElement("div");
-    divCartItemsSettingQuantity.className = "cart__item__content__settings__quantity";
-    divCartItemsSetting.appendChild(divCartItemsSettingQuantity);
-
-// ajout d'un p qui va contenir le mot "Qté :" 
-let divCartItemsSettingQty = document.createElement("p");
-    divCartItemsSettingQuantity.appendChild(divCartItemsSettingQty);
-    divCartItemsSettingQty.innerHTML = "Qté : ";
-
-// ajout de l'input qui va contenir la quantité 
-let inputQuantity = document.createElement("input");
-    divCartItemsSettingQuantity.appendChild(inputQuantity); 
-    inputQuantity.value = addProduct[i].addQuantity;
-    inputQuantity.className = "itemQuantity";
-    inputQuantity.setAttribute("type", "number");
-    inputQuantity.setAttribute("min", "1");
-    inputQuantity.setAttribute("max", "100");
-    inputQuantity.setAttribute("name", "itemQuantity");
-
-// ajout d'une div   
-let divCartItemsDelete = document.createElement("div");
-    divCartItemsDelete.className = "cart__item__content__settings__delete";
-    divCartItems.appendChild(divCartItemsDelete);
-
-// ajout d'un p qui va contenir le bouton "Supprimer"   
-let pDeleteItem = document.createElement("p");
-    pDeleteItem.className = "deleteItem";
-    divCartItemsDelete.appendChild(pDeleteItem);
-    pDeleteItem.innerHTML = "Supprimer";
-
-// fin de l'affichage des produits panier 
-
-// affichage de la quantité et du prix pour les produits
-    const quantityAndPrice = () => {
-    
-    let elQuantity = document.getElementsByClassName('itemQuantity'); // on cible la class "itemQuantity"
-    let productQuantity = elQuantity.length; // on stock la quantité des produits dans une variable
-    totalQuantity = 0; // on fixe la quantité à 0 de base
-
-    for (let j = 0; j < productQuantity; ++j) {
-        totalQuantity += elQuantity[j].valueAsNumber; // on va chercher la quantité dans le tableau avec une boucle for    
-    }
-
-    let valueQuantity = document.getElementById('totalQuantity'); // on cible l'id totalQuantity
-    valueQuantity.innerHTML = totalQuantity; // on ajoute la quantité dans le html 
-
-// affichage du prix total
-    totalPrice = 0; // on fixe la prix total à 0 de base
-    let productTotalPrice = document.getElementById('totalPrice');
-    productTotalPrice.innerHTML = totalPrice;
-    };
-quantityAndPrice();
-
-// fonction pour modifier la quantité 
-    const quantityChanged = () => {
-    let qtyModif = document.querySelectorAll(".itemQuantity");
-    
-
-    for (let l= 0; l < qtyModif.length; l++) {
-        qtyModif[l].addEventListener("change" , (e) => {
-        e.preventDefault();
-        
-
-        let qtyInputValue = qtyModif[l].valueAsNumber; // on stock la quantité reçu par la boucle dans une variable
-    
-        addProduct[l].addQuantity = qtyInputValue; // on récupere la quantité du localstorage 
-
-        quantityAndPrice(); // on rappelle la fonction pour que le prix s'actualise en temps réel.   
-
-        localStorage.setItem("prod", JSON.stringify(addProduct)); // on modifie ou supprime la quantité dans le localStorage
-   
-    });
-    }
-};
-quantityChanged();
-
-// fonction pour supprimer un produit
-const deleteProducts = () => {
-         
-    pDeleteItem.addEventListener("click" , (e) => {
-        e.preventDefault();
-         // enregistrer l'id et la couleur séléctionnés par le bouton supprimer
-         let deleteId = addProduct[i].addIdProduct;
-         let deleteColor = addProduct[i].addColors;
-
-         // filtrer l'élément cliqué par le bouton supprimer
-         addProduct = addProduct.filter( el => el.addIdProduct !== deleteId || el.addColors !== deleteColor);
-         console.log(pDeleteItem);
-
-
-         localStorage.setItem("prod", JSON.stringify(addProduct)); // on modifie ou supprime la quantité dans le localStorage
-
-         location.reload();
-
-    });
-    }
-
-deleteProducts();
-
-let btnCommander = document.getElementById("order");
-
-btnCommander.addEventListener("click", (e) => {
-e.preventDefault();
-
-const contact = { 
-    firstName: document.getElementById("firstName").value,
-    lastName:  document.getElementById("lastName").value,
-    address:   document.getElementById("address").value,
-    city:      document.getElementById("city").value,
-    email:     document.getElementById("email").value
+  return {
+    ...product,
+    ...item,
+  }
 }
 
-let contactRegex= [
-    firstName.reportValidity(),
-    lastName.reportValidity(),
-    address.reportValidity(),
-    city.reportValidity(),
-    email.reportValidity()
-]
+/**
+ * Create a cart element.
+ *
+ * @param {CartProduct} data
+ */
+function createCartElement (data) {
+  /** @type {CartElement} */
+  const {
+    item, imgParent, img, content, description, title, color, price, settings, settingsQuantity, quantityLabel, quantityInput, settingsDelete, deleteItem,
+  } = createElementFactory(
+    'item:article',
+      'imgParent:div',
+        'img',
+      'content:div',
+        'description:div',
+          'title:h2',
+          'color:p',
+          'price:p',
+      'settings:div',
+        'settingsQuantity:div',
+          'quantityLabel:p',
+          'quantityInput:input',
+        'settingsDelete:div',
+          'deleteItem:p'
+    )
 
-let products = [];
-products.push(addProduct[i].addIdProduct);
-console.log(products);
+  // image
+  img.alt = data.altTxt
+  img.src = data.imageUrl
 
-const send = {
-    products,
-    contact
-};
+  imgParent.classList.add('cart__item__img')
+  imgParent.appendChild(img)
 
-const promise =  {
-    method: 'POST',
-    body: JSON.stringify(send),
-    headers: {
-        'Content-Type': 'application/json',
+  // description
+  title.innerText = data.name
+  color.innerText = data.color
+  price.innerText = `${localePrice(data.price)} €`
+
+  description.classList.add('cart__item__content__description');
+  [ title, color, price ].forEach(child => description.appendChild(child))
+
+  // settings quantity
+  quantityLabel.innerText = 'Qté : '
+
+  quantityInput.type = 'number'
+  quantityInput.name = 'itemQuantity'
+  quantityInput.min = '1'
+  quantityInput.max = '100'
+  quantityInput.valueAsNumber = data.quantity
+  quantityInput.classList.add('itemQuantity')
+
+  settingsQuantity.classList.add('cart__item__content__settings__quantity');
+  [ quantityLabel, quantityInput ].forEach(child => settingsQuantity.appendChild(child))
+
+  // settings delete
+  deleteItem.innerText = 'Supprimer'
+  deleteItem.classList.add('deleteItem')
+
+  settingsDelete.classList.add('cart__item__content__settings__delete')
+  settingsDelete.appendChild(deleteItem)
+
+  // settings
+  settings.classList.add('cart__item__content__settings');
+  [ settingsQuantity, settingsDelete ].forEach(child => settings.appendChild(child))
+
+  // content
+  content.classList.add('cart__item__content');
+  [ description, settings ].forEach(child => content.appendChild(child))
+
+  // article
+  item.dataset.id = data._id
+  item.dataset.color = data.color
+
+  item.classList.add('cart__item');
+  [ imgParent, content ].forEach(child => item.appendChild(child))
+
+  return item
+}
+
+/**
+ * Render cart items to DOM.
+ *
+ * @param {HTMLElement} el
+ * @param {Products} products
+ *
+ * @returns {{ target: HTMLElement, items: CartProducts }}
+ */
+function renderCartItems (el, products) {
+  const target = el.cloneNode()
+  const items = getCartProducts(products)
+  const elements = items.map(item => createCartElement(item))
+
+  // append each product to list
+  elements.forEach(element => target.appendChild(element))
+
+  // replace content with the list of products
+  el.parentElement.replaceChild(target, el)
+
+  return target
+}
+
+/**
+ * Update cart item.
+ *
+ * @param {HTMLElement} el Parent of all cart elements
+ * @param {HTMLElement} triggerEl Cart item element or one of its child
+ * @param {number} quantity Quantity to set in cart
+ * @param {Products} products
+ * @param {UpdateItemHandlers} handlers
+ */
+function updateItem (el, triggerEl, quantity, products, handlers) {
+  /** @type {HTMLElement} */
+  const productEl = Array.from(el.children).find(child => child.contains(triggerEl) || child === triggerEl)
+
+  if (productEl) {
+    const { id: productId, color } = productEl.dataset
+    const product = (productId && products.find(product => product._id === productId)) || null
+
+    /** @type {SaveHandlers} */
+    const wrappedHandlers = Object.fromEntries(Object.entries(handlers).map(([ k, fn ]) => ([ k, item => fn(productEl, item) ])))
+
+    if (product && productId && color) {
+      if (saveToCart(product, color, quantity, wrappedHandlers)) {
+        updateCartState(products)
+      }
     }
+  }
 }
 
-let contactRegexEnd = true;
-for (let n= 0; n < contactRegex.length; n++) {
-    if (contactRegex[n] == false) contactRegexEnd = false;
+/**
+ * Registers event to listen for change on items.
+ *
+ * @param {HTMLElement} el Parent of all cart elements
+ * @param {Products} products
+ */
+function handleItemsChange (el, products) {
+  /** @type {NodeListOf<HTMLInputElement>} */
+  const itemQuantityList = el.querySelectorAll('.itemQuantity')
+  /** @type {NodeListOf<HTMLInputElement>} */
+  const deleteItemList = el.querySelectorAll('.deleteItem')
+
+  /** @type {UpdateItemHandlers} */
+  const handlers = {
+    remove (productEl) {
+      el.removeChild(productEl)
+    },
+  }
+
+  /**
+   * @this {HTMLInputElement}
+   * @param {InputEvent} event
+   */
+  function onQuantityChange (event) {
+    const quantity = this.valueAsNumber
+
+    // prevent removing element on empty quantity when typing
+    return quantity && updateItem(el, event.currentTarget, quantity, products, handlers)
+  }
+
+  /**
+   * @this {HTMLInputElement}
+   * @param {InputEvent} event
+   */
+  function onDelete (event) {
+    return updateItem(el, event.currentTarget, 0, products, handlers)
+  }
+
+  itemQuantityList.forEach(inputQuantity => inputQuantity.addEventListener('change', onQuantityChange))
+  deleteItemList.forEach(deleteItem => deleteItem.addEventListener('click', onDelete))
 }
-if (contactRegexEnd == true) {
-    
-    fetch("http://localhost:3000/api/products/order", promise)
-        .then(response => response.json())
-        .then(data => {
-        localStorage.setItem('orderId', data.orderId);
-        document.location.href = 'confirmation.html?id='+ data.orderId;
-        console.log(data.orderId);
-      });
-}  
-});
-};
-};
-fetchProducts();
+
+/**
+ * Fetch products and render cart to DOM.
+ * If it fails to fetch it handles error nicely.
+ *
+ * @param {HTMLElement} el Element where to render cart
+ * @param {Products} products
+ */
+async function renderCart (el, products) {
+  const target = renderCartItems(el, products)
+
+  updateCartState(products)
+  handleItemsChange(target, products)
+}
+
+/**
+ * @this {HTMLFormElement}
+ * @param {Event} event
+ */
+async function onFormSubmit (event) {
+  event.preventDefault()
+
+  const contact = Object.fromEntries((new FormData(this)).entries())
+  const products = getCartFromStorage().map(({ productId }) => productId)
+
+  const headers = { 'Content-Type': 'application/json; charset=UTF-8' }
+  const body = JSON.stringify({ contact, products })
+
+  try {
+    const req = new Request(ORDER_URL, { method: 'POST', headers, body })
+    const { orderId } = await fetchData(req)
+
+    const confirmationURL = new URL(window.location.href)
+
+    confirmationURL.pathname = confirmationURL.pathname.replace(/cart.html$/, 'confirmation.html')
+    confirmationURL.searchParams.set('orderId', orderId)
+
+    writeCartToStorage([])
+    window.location.href = confirmationURL.toString()
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+/**
+ * @param {HTMLFormElement} formEl
+ * @param {CartProducts} items
+ */
+function handleForm (formEl, items) {
+  if (items.length) {
+    formEl.setAttribute('disabled', false)
+    formEl.style.display = ''
+
+    formEl.removeEventListener('submit', onFormSubmit)
+    formEl.addEventListener('submit', onFormSubmit)
+  } else {
+    formEl.setAttribute('disabled', true)
+    formEl.style.display = 'none'
+  }
+}
+
+const getItemsEl = () => document.querySelector('#cart__items')
+
+const getCartProducts = products => {
+  const cart = getCartFromStorage()
+
+  return cart.map(item => mapCartItem(products, item)).filter(Boolean)
+}
+
+const updateCartState = products => {
+  const items = getCartProducts(products)
+
+  computeQuantity(document.querySelector('#totalQuantity'), items)
+  computePriceByQuantity(document.querySelector('#totalPrice'), items)
+  handleForm(document.querySelector('.cart__order__form'), items)
+}
+
+document.addEventListener('DOMContentLoaded', async function () {
+  /** @type {Products} */
+  const products = await fetchData(PRODUCTS_URL)
+
+  /** Cart container where to render */
+  renderCart(getItemsEl(), products)
+})
