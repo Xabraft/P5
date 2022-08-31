@@ -1,7 +1,11 @@
-const id = new URL(window.location.href).searchParams.get("id");
-console.log(id);
+import { getURLParam } from './utils.js'
 
-const orderId = document.getElementById('orderId');
-orderId.innerHTML = id;
+document.addEventListener('DOMContentLoaded', async function () {
+  /** @type {HTMLSpanElement} */
+  const el = document.querySelector('#orderId')
 
-localStorage.clear();
+  /** @type {string} */
+  const orderId = getURLParam(window.location.href, 'orderId')
+
+  el.innerText = orderId
+})
